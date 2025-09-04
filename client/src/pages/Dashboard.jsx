@@ -15,7 +15,10 @@ import {
 } from "recharts";
 import { toast } from "react-hot-toast";
 import BudgetCard from "../components/BudgetCard";
+
+import { generateInsights } from "../components/generateInsights";
 import { GoalContribution } from "../components/GoalContribution";
+
 export default function Dashboard() {
   const { axios } = useAuth();
   const [transactions, setTransactions] = useState([]);
@@ -50,20 +53,28 @@ export default function Dashboard() {
     );
   };
 
-  // Charts
+  // -------- Income / Expense / Goal Contribution calculations --------
   const income = transactions
-    .filter((t) => t.type === "income")
+    .filter((t) => t.type === "income" && !t.goal) // exclude goal contributions
     .reduce((acc, t) => acc + t.amount, 0);
 
   const expense = transactions
     .filter((t) => t.type === "expense")
     .reduce((acc, t) => acc + t.amount, 0);
 
+  const goalContributions = transactions
+    .filter((t) => t.type === "income" && t.goal) // only contributions
+    .reduce((acc, t) => acc + t.amount, 0);
+
+  const net = income - expense - goalContributions;
+
   const incomeExpenseData = [
     { name: "Income", value: income },
     { name: "Expense", value: expense },
+    { name: "Goal Contribution", value: goalContributions },
   ];
 
+  // -------- Category chart (expenses only) --------
   const categoryData = transactions
     .filter((t) => t.type === "expense")
     .reduce((acc, t) => {
@@ -76,16 +87,65 @@ export default function Dashboard() {
     value: categoryData[cat],
   }));
 
+  // -------- Insights --------
+  const insights = generateInsights({ transactions, budgets, goals });
+
   const COLORS = ["#4CAF50", "#F44336", "#2196F3", "#FF9800", "#9C27B0"];
 
   return (
     <div className="p-6 space-y-8">
       <h1 className="text-2xl font-bold">Dashboard</h1>
 
+      {/* Summary Cards */}
+      <div className="grid md:grid-cols-4 gap-4">
+        <div className="bg-white shadow rounded-lg p-4">
+          <h3 className="text-gray-500">Income</h3>
+          <p className="text-xl font-bold text-green-600">₹{income}</p>
+        </div>
+        <div className="bg-white shadow rounded-lg p-4">
+          <h3 className="text-gray-500">Expense</h3>
+          <p className="text-xl font-bold text-red-600">₹{expense}</p>
+        </div>
+        <div className="bg-white shadow rounded-lg p-4">
+          <h3 className="text-gray-500">Goals</h3>
+          <p className="text-xl font-bold text-blue-600">
+            ₹{goalContributions}
+          </p>
+        </div>
+        <div className="bg-white shadow rounded-lg p-4">
+          <h3 className="text-gray-500">Net</h3>
+          <p
+            className={`text-xl font-bold ${
+              net >= 0 ? "text-green-600" : "text-red-600"
+            }`}>
+            ₹{net}
+          </p>
+        </div>
+      </div>
+
+      {/* AI-powered Insights */}
+      <div className="bg-white p-4 shadow rounded-lg">
+        <h2 className="text-lg font-semibold mb-4">Insights</h2>
+        {insights.length > 0 ? (
+          <ul className="list-disc list-inside space-y-2">
+            {insights.map((msg, idx) => (
+              <li key={idx} className="text-gray-700">
+                {msg}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-gray-500">No insights yet. Add some data!</p>
+        )}
+      </div>
+
       {/* Charts Section */}
       <div className="grid md:grid-cols-2 gap-6">
+        {/* Income vs Expense vs Goals */}
         <div className="bg-white p-4 shadow rounded-lg flex flex-col items-center">
-          <h2 className="text-lg font-semibold mb-4">Income vs Expense</h2>
+          <h2 className="text-lg font-semibold mb-4">
+            Income / Expense / Goals
+          </h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -108,6 +168,7 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
+        {/* Expenses by Category */}
         <div className="bg-white p-4 shadow rounded-lg">
           <h2 className="text-lg font-semibold mb-4">Expenses by Category</h2>
           <ResponsiveContainer width="100%" height={300}>

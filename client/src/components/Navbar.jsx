@@ -2,13 +2,15 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, navigate } = useAuth();
 
   if (!user) return null;
 
   return (
     <nav className="bg-gray-800 text-white px-6 py-3 flex justify-between items-center">
-      <h1 className="text-lg font-bold">Finance Tracker</h1>
+      <Link className="text-lg font-bold" to="/">
+        Finance Tracker
+      </Link>
       <div className="space-x-4">
         <Link to="/dashboard">Dashboard</Link>
         <Link to="/transactions">Transactions</Link>

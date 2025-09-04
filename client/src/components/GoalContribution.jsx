@@ -14,7 +14,7 @@ export function GoalContribution({ goal, onUpdateGoal }) {
     }
 
     try {
-      // 1️⃣ Create a transaction
+      //  Create a transaction
       const { data: txData } = await axios.post("/api/transaction/create", {
         type: "income",
         amount: contribution,

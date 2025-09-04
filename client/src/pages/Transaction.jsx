@@ -63,11 +63,10 @@ export default function TransactionsPage() {
     setEditId(null);
   };
 
-  // Handle submit
+  // Handle submit (create or update)
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation
     if (type === "expense" && !category) {
       toast.error("Category is required for expenses");
       return;
@@ -78,14 +77,21 @@ export default function TransactionsPage() {
     }
 
     // Build payload
-    const payload = {
+    let payload = {
       type,
       amount: Number(amount),
       note,
     };
 
-    if (type === "expense") payload.category = category;
-    if (type === "income" && goal) payload.goal = goal;
+    if (type === "expense") {
+      payload.category = category;
+    }
+
+    // If linked to goal → force income + Goal Contribution category
+    if (type === "income" && goal) {
+      payload.goal = goal;
+      payload.category = "Goal Contribution";
+    }
 
     try {
       if (editId) {
@@ -93,13 +99,18 @@ export default function TransactionsPage() {
           `/api/transaction/update/${editId}`,
           payload
         );
-        if (data.success) toast.success("Transaction updated!");
+        if (data.success) {
+          toast.success("Transaction updated!");
+        }
       } else {
         const { data } = await axios.post("/api/transaction/create", payload);
-        if (data.success) toast.success("Transaction added!");
+        if (data.success) {
+          toast.success("Transaction added!");
+        }
       }
 
       fetchTransactions();
+      fetchGoals(); // refresh goals savedAmount after contribution
       resetForm();
     } catch (error) {
       toast.error(error.response?.data?.message || "An error occurred");
@@ -113,6 +124,7 @@ export default function TransactionsPage() {
       if (data.success) {
         toast.success("Transaction deleted!");
         fetchTransactions();
+        fetchGoals(); // also refresh goals
       }
     } catch {
       toast.error("Failed to delete transaction");
@@ -125,8 +137,16 @@ export default function TransactionsPage() {
     setType(t.type);
     setAmount(t.amount);
     setNote(t.note);
-    if (t.type === "expense") setCategory(t.category);
-    if (t.type === "income") setGoal(t.goal?._id || "");
+
+    if (t.type === "expense") {
+      setCategory(t.category);
+      setGoal("");
+    }
+
+    if (t.type === "income" && t.goal) {
+      setGoal(t.goal?._id || "");
+      setCategory("Goal Contribution");
+    }
   };
 
   return (
@@ -136,23 +156,24 @@ export default function TransactionsPage() {
       {/* Transaction Form */}
       <form
         onSubmit={handleSubmit}
-        className="grid md:grid-cols-5 gap-3 p-4 bg-white rounded-lg shadow">
+        className="grid md:grid-cols-6 gap-3 p-4 bg-white rounded-lg shadow">
         {/* Type */}
         <select
           value={type}
           onChange={(e) => setType(e.target.value)}
-          className="border p-2 rounded">
+          className="border p-2 rounded"
+          disabled={goal} // lock if goal selected
+        >
           <option value="expense">Expense</option>
           <option value="income">Income</option>
         </select>
 
-        {/* Category (expenses only) */}
+        {/* Category (only for expenses) */}
         {type === "expense" && (
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="border p-2 rounded"
-            required={type === "expense"}>
+            className="border p-2 rounded">
             <option value="">Select Category</option>
             {budgets.map((b) => (
               <option key={b._id} value={b.category}>
